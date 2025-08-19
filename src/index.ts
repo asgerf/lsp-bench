@@ -2,8 +2,8 @@
 import * as child_process from "child_process";
 import * as fs from "fs";
 import { performance } from "perf_hooks";
-import * as rpc from "vscode-jsonrpc";
-import * as lsp from "vscode-languageserver-protocol";
+import * as lsp from "vscode-languageserver-protocol/";
+import * as lsp_node from "vscode-languageserver-protocol/node";
 import { LineTable } from "./line_table";
 
 interface Options {
@@ -110,7 +110,9 @@ async function main(config: Config) {
     let proc = child_process.spawn(command[0], command.slice(1), {
         stdio: ['pipe', 'pipe', 'inherit'] // forward stderr, create pipes for the rest
     });
-    let connection = rpc.createMessageConnection(proc.stdout!, proc.stdin!);
+    let connection = lsp.createMessageConnection(
+        new lsp_node.StreamMessageReader(proc.stdout!),
+        new lsp_node.StreamMessageWriter(proc.stdin!));
     connection.listen();
     let initEnd = performance.now();
     console.warn("Now listening (took " + Math.round(initEnd - initStart) + " ms)");
@@ -144,7 +146,7 @@ async function main(config: Config) {
             let endPos = lsp.Position.create(line, column + replacedWord.length);
 
             let startTime = performance.now();
-            
+
             let modifiedVersion = lsp.VersionedTextDocumentIdentifier.create(uri, ++versionNumber);
             let replacedText = options.jumpToDef
                 // jump-to-def: Insert a space afterward.

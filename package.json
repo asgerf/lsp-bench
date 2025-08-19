@@ -6,13 +6,13 @@
         "watch": "tsc -p . -w --sourceMap",
         "lint": "tslint --project tslint.json"
     },
+    "bin": "build/index.js",
     "devDependencies": {
-        "@types/node": "^12.12.14",
-        "typescript": "^3.7.2"
+        "@types/node": "^24.3.0",
+        "typescript": "^5.9.2"
     },
     "dependencies": {
-        "vscode-jsonrpc": "^4.0.0",
-        "vscode-languageserver-protocol": "^3.14.1"
+        "vscode-languageserver-protocol": "^3.17.5"
     },
-    "bin": "build/index.js"
+    "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
