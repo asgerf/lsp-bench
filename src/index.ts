@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 import * as child_process from "child_process";
 import * as fs from "fs";
+import * as path from "path";
+import { pathToFileURL } from "url";
 import { performance } from "perf_hooks";
-import * as lsp from "vscode-languageserver-protocol/";
+import * as lsp from "vscode-languageserver-protocol";
 import * as lsp_node from "vscode-languageserver-protocol/node";
 import { LineTable } from "./line_table";
 
 interface Options {
     jumpToDef: boolean;
+    language: string;
+    workspaceFolders: string[];
 }
 
 interface Config {
@@ -42,9 +46,11 @@ const usageString = `
   it with requests based on the files given.
 
   Options:
-    --jump:         Request jump-to-def instead of completions.
-    --format=<fmt>: Set output format to one of: ${Object.keys(Reporters).join(', ')}
-                    Default is 'human'.
+    --language=<language>: Set the language of the files (for example: codeql, python, javascript, typescript).
+    --workspace=<folder>:  Add a workspace folder to the server.
+    --jump:                Request jump-to-def instead of completions.
+    --format=<fmt>:        Set output format to one of: ${Object.keys(Reporters).join(', ')}
+                           Default is 'human'.
 `;
 
 function help(): never {
@@ -72,6 +78,8 @@ function parseOptions(): Config {
 
     let files: string[] = [];
     let jumpToDef = false;
+    let language = 'codeql';
+    let workspaceFolders: string[] = [];
     for (let arg of optionArgs) {
         if (!arg.startsWith('-')) {
             files.push(arg);
@@ -83,6 +91,10 @@ function parseOptions(): Config {
                 fail('Unrecognized format: ' + format);
             }
             reporter = Reporters[format as keyof typeof Reporters];
+        } else if (arg.startsWith('--language=')) {
+            language = arg.substring('--language='.length);
+        } else if (arg.startsWith('--workspace=')) {
+            workspaceFolders.push(arg.substring('--workspace='.length));
         } else {
             fail('Unrecognized flag: ' + arg);
         }
@@ -95,11 +107,13 @@ function parseOptions(): Config {
             fail('Input must be a file, not a directory: ' + file);
         }
     }
-
+    if (workspaceFolders.length === 0) {
+        workspaceFolders.push(process.cwd());
+    }
     return {
         files,
         command,
-        options: { jumpToDef }
+        options: { jumpToDef, language, workspaceFolders }
     };
 }
 
@@ -114,11 +128,22 @@ async function main(config: Config) {
         new lsp_node.StreamMessageReader(proc.stdout!),
         new lsp_node.StreamMessageWriter(proc.stdin!));
     connection.listen();
+    let params: lsp.InitializeParams = {
+        workspaceFolders: config.options.workspaceFolders.map(
+            folder => ({ uri: pathToFileURL(folder).toString(), name: path.basename(folder) })
+        ),
+        processId: process.pid,
+        rootUri: null,
+        capabilities: {}
+    };
+    let result = await connection.sendRequest(lsp.InitializeRequest.type, params);
+    await connection.sendNotification(lsp.InitializedNotification.type, {});
+
     let initEnd = performance.now();
     console.warn("Now listening (took " + Math.round(initEnd - initStart) + " ms)");
 
     for (let file of config.files) {
-        let uri = 'file://' + fs.realpathSync(file);
+        let uri = pathToFileURL(fs.realpathSync(file)).toString();
         let fileId = lsp.TextDocumentIdentifier.create(uri);
         let text = fs.readFileSync(file, 'utf8');
         let lines = text.split(/\r\n?|\n/);
