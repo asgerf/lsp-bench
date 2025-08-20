@@ -167,8 +167,8 @@ async function main(config: Config) {
             if (commentRegex.test(lines[line - 1])) {
                 continue;
             }
-            let startPos = lsp.Position.create(line, column);
-            let endPos = lsp.Position.create(line, column + replacedWord.length);
+            let startPos = lsp.Position.create(line - 1, column - 1);
+            let endPos = lsp.Position.create(line - 1, column + replacedWord.length - 1);
 
             let startTime = performance.now();
 
