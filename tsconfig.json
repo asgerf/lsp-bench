@@ -2,6 +2,7 @@
   "include": ["src"],
   "compilerOptions": {
     "outDir": "build",
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true,
   }
 }
